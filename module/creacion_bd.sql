@@ -170,8 +170,8 @@ create table EMPLEADO (
    CODEMPLEADO          VARCHAR(4)           not null,
    NOMEMPLEADO          VARCHAR(30)          not null,
    APELLEMPLEADO        VARCHAR(30)          not null,
-   "USER"               VARCHAR(5)           not null,
-   PASSWORD             VARCHAR(5)           not null,
+   USUARIO               VARCHAR(5)           not null,
+   CONTRASENA             VARCHAR(5)           not null,
    constraint PK_EMPLEADO primary key (CODEMPLEADO)
 );
 
