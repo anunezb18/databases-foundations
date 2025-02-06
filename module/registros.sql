@@ -81,9 +81,9 @@ insert into telefono (idtel, rutcli, codpais, numerotel) values (3189012345, '00
 insert into telefono (idtel, rutcli, codpais, numerotel) values (3190123456, '005', '57', '3190123456');
 
 --Registrar 3 empleados
-insert into empleado (codempleado, nomempleado, apellempleado, "USER", password) values ('01', 'Andrea', 'Martinez', 'andma', '12345');
-insert into empleado (codempleado, nomempleado, apellempleado, "USER", password) values ('02', 'Luis', 'Diaz', 'lucho', '72489');
-insert into empleado (codempleado, nomempleado, apellempleado, "USER", password) values ('03', 'Alegria', 'Fernandez', 'algfe', '16245');
+insert into empleado (codempleado, nomempleado, apellempleado, usuario, contrasena) values ('01', 'Andrea', 'Martinez', 'andma', '12345');
+insert into empleado (codempleado, nomempleado, apellempleado, usuario, contrasena) values ('02', 'Luis', 'Diaz', 'lucho', '72489');
+insert into empleado (codempleado, nomempleado, apellempleado, usuario, contrasena) values ('03', 'Alegria', 'Fernandez', 'algfe', '16245');
 
 --Ingresar 3 productos por cada categoria cada uno con 3 precios
 -- producto 1 (alimento)

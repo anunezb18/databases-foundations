@@ -1,0 +1,62 @@
+Instrucciones para la Instalación, Configuración e Implementación de la Interfaz
+
+
+1. INSTALACION
+
+Antes de ejecutar la interfaz, asegúrese de cumplir con los siguientes requisitos:
+
+Tener instalada la base de datos PostgreSQL con las tablas necesarias ya creadas
+![![alt text](https://)](image.png)
+
+Python instalado en su sistema.
+
+Librerías necesarias instaladas (psycopg2 para la conexión con PostgreSQL y Tkinter para el despliegue de la interfaz)
+
+2. CONFIGURACION
+
+La base de datos debe estar correctamente configurada antes de ejecutar la interfaz. Verifique que:
+
+La base de datos esté creada en PostgreSQL.
+
+Las tablas requeridas estén correctamente estructuradas.
+
+Se tenga acceso a un usuario con permisos suficientes.
+
+La configuración de conexión en el código coincida con los datos de su base de datos.
+![alt text](image-1.png)
+
+3. IMPLEMENTACION
+El codigo incluye las siguientes funciones con su respectivo uso:
+ 
+# Conectar a la base de datos
+def conectar_bd(): 
+
+# Función para obtener el nombre del empleado y mostrarlo en la celda correspondiente
+def cargar_nombre_empleado(codempleado, entry_empleado):
+
+# Función para obtener la fecha del sistema y mostrarla en la celda correspondiente
+def cargar_fecha_actual(entry_fecha):
+
+# Función para obtener el número de factura y mostrarlo en la celda correspondiente
+def obtener_numero_factura(entry_factura):
+
+# Función para buscar el nombre del cliente y reemplazar el código en la misma celda
+def buscar_cliente(entry_codigo, entry_cliente):
+
+# Función para buscar productos
+def buscar_producto(entry_producto, tabla, entry_cantidad, entry_descuento):
+
+# Función para calcular el total
+def calcular_total(tabla):
+
+# Función para guardar los datos
+def guardar_datos(entry_factura, entry_cliente_codigo, entry_empleado, entry_fecha, tabla):
+
+# Función para abrir la ventana principal
+def abrir_ventana_principal(codempleado):
+
+# Función para el login
+def login():
+
+# Función para registrar empleados
+def registrar():
