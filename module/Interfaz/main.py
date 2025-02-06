@@ -5,19 +5,21 @@ from datetime import datetime
 
 # Configuración de la base de datos
 DB_HOST = "localhost"
-DB_NAME = "Modulo"
+DB_NAME = "modulo-final"
 DB_USER = "postgres"
-DB_PASSWORD = "postgres"
+DB_PASSWORD = "Bullrock"
 
 # Conectar a la base de datos
 def conectar_bd():
     try:
-        return psycopg2.connect(
+        conn = psycopg2.connect(
             host=DB_HOST,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD
         )
+        conn.set_client_encoding('UTF8')
+        return conn
     except Exception as e:
         messagebox.showerror("Error de conexión", f"No se pudo conectar a la base de datos: {e}")
         return None
@@ -60,7 +62,7 @@ def obtener_numero_factura(entry_factura):
     entry_factura.insert(0, str(nuevo_numero))
 
 # Función para buscar el nombre del cliente y reemplazar el código en la misma celda
-def buscar_cliente(entry_codigo):
+def buscar_cliente(entry_codigo, entry_cliente):
     codigo_cliente = entry_codigo.get().strip()
     
     if not codigo_cliente:
@@ -77,17 +79,24 @@ def buscar_cliente(entry_codigo):
     conn.close()
     
     if cliente:
-        entry_codigo.delete(0, tk.END)
-        entry_codigo.insert(0, cliente[0])  # Reemplazar el código con el nombre del cliente
+        entry_cliente.delete(0, tk.END)
+        entry_cliente.insert(0, cliente[0])
     else:
         messagebox.showerror("Error", "Cliente no encontrado")
 
-# -------------------------
 # Función para buscar productos
-def buscar_producto(entry_producto, tabla):
+def buscar_producto(entry_producto, tabla, entry_cantidad, entry_descuento):
     nombre_busqueda = entry_producto.get().strip()
     if not nombre_busqueda:
         messagebox.showerror("Error", "Debe ingresar el nombre del producto")
+        return
+
+    # Validar cantidad y descuento
+    try:
+        cantidad = int(entry_cantidad.get().strip())
+        descuento = float(entry_descuento.get().strip())
+    except ValueError:
+        messagebox.showerror("Error", "Cantidad y Descuento deben ser valores numéricos")
         return
 
     conn = conectar_bd()  
@@ -123,11 +132,12 @@ def buscar_producto(entry_producto, tabla):
             return
 
         precio = precio_reg[0]
+        total = "Pendiente"
 
-        # Valores por defecto
-        cantidad = 1
-        descuento = 0     
-        total = "Pendiente"  # Aquí puedes cambiar a un cálculo real de Total si lo necesitas
+        # Verificar si la cantidad es mayor al stock disponible
+        if cantidad > stock:
+            messagebox.showerror("Error", f"La cantidad solicitada ({cantidad}) excede el stock disponible ({stock})")
+            return
 
         # Verificar si el producto ya existe en la tabla, para no agregarlo duplicado
         for item in tabla.get_children():
@@ -139,7 +149,7 @@ def buscar_producto(entry_producto, tabla):
         tabla.insert(
             "",
             "end",
-            values=(idpro, nompro, cantidad, precio, descuento, total, stock)
+            values=(str(idpro).zfill(4), nompro, cantidad, precio, descuento, total, stock)
         )
 
     except Exception as e:
@@ -147,47 +157,79 @@ def buscar_producto(entry_producto, tabla):
     finally:
         conn.close()
 
-def configurar_edicion_tabla(tabla, parent):
-    def on_double_click(event):
-        # Identificar la región, fila y columna en la que se hizo clic
-        region = tabla.identify("region", event.x, event.y)
-        if region != "cell":
-            return
-        columna = tabla.identify_column(event.x)
-        fila = tabla.identify_row(event.y)
-        
-        if not fila:
-            return
+# Función para calcular el total
+def calcular_total(tabla):
+    for item in tabla.get_children():
+        values = tabla.item(item)['values']
+        cantidad = int(values[2])
+        precio = float(values[3])
+        descuento = float(values[4])
+        total = cantidad * precio - (descuento / 100) * precio
+        tabla.set(item, column=5, value=total)
 
-        # Obtener la posición y tamaño de la celda
-        x, y, width, height = tabla.bbox(fila, columna)
-        # Valor actual de la celda
-        valor_actual = tabla.set(fila, columna)
+# Función para guardar los datos
+def guardar_datos(entry_factura, entry_cliente_codigo, entry_empleado, entry_fecha, tabla):
+    factura = entry_factura.get().strip()
+    cliente_codigo = entry_cliente_codigo.get().strip()[:20]  # Ajusta el tamaño según la longitud máxima permitida
+    empleado = entry_empleado.get().strip()[:10]  # Ajusta el tamaño según la longitud máxima permitida
+    fecha = entry_fecha.get().strip()
 
-        # Crear un Entry para editar el valor y posicionarlo sobre la celda
-        entry_edit = tk.Entry(parent)
-        entry_edit.place(x=x, y=y, width=width, height=height)
-        entry_edit.insert(0, valor_actual)
-        entry_edit.focus_set()
+    if not factura or not cliente_codigo or not empleado or not fecha:
+        messagebox.showerror("Error", "Todos los campos deben estar llenos")
+        return
 
-        def guardar_edicion(event):
-            nuevo_valor = entry_edit.get().strip()
-            # Actualizar el valor de la celda
-            tabla.set(fila, columna, nuevo_valor)
-            # Lógica para guardar el cambio, si es necesario en la base de datos
-            entry_edit.destroy()
+    conn = conectar_bd()
+    if conn is None:
+        return
 
-        entry_edit.bind("<Return>", guardar_edicion)
-        entry_edit.bind("<FocusOut>", guardar_edicion)
+    try:
+        cursor = conn.cursor()
+        print(f"Factura: {factura}, Empleado: {empleado}, Cliente: {cliente_codigo}, Fecha: {fecha}")
+        cursor.execute('''
+            INSERT INTO venta (noventa, codempleado, rutcli, fecventa)
+            VALUES (%s, %s, %s, %s)
+        ''', (factura, empleado, cliente_codigo, fecha))
+        conn.commit()
 
-    tabla.bind("<Double-1>", on_double_click)
+        item_number = 1
+        for item in tabla.get_children():
+            values = tabla.item(item)['values']
+            idpro = str(values[0]).zfill(4)
+            cantidad = int(values[2])
+            precio = float(values[3])
+            descuento = float(values[4]) * 100  # Multiplicar por 100 para guardar como entero
+            total = round(float(values[5]), 2)  # Redondea el total a 2 decimales
 
-# -------------------------
+            # Asegurarse de que el total no exceda el valor permitido
+            if abs(total) >= 100000000:
+                messagebox.showerror("Error", f"El total ({total}) excede el valor permitido")
+                return
+
+            print(f"Detalle Venta - Factura: {factura}, Item: {item_number}, ID Producto: {idpro}, Precio: {precio}, Cantidad: {cantidad}, Descuento: {descuento}, Total: {total}")
+
+            cursor.execute('''
+                INSERT INTO detalleventa (noventa, item, idpro, precio, cantidad, descuento, preciototal)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''', (factura, item_number, idpro, precio, cantidad, descuento, total))
+            cursor.execute('''
+                UPDATE producto
+                SET stock = stock - %s
+                WHERE idpro = %s
+            ''', (cantidad, idpro))
+            item_number += 1
+        conn.commit()
+        messagebox.showinfo("Información", "Datos guardados correctamente")
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudieron guardar los datos: {e}")
+        print(e)
+    finally:
+        conn.close()
+
 # Función para abrir la ventana principal
 def abrir_ventana_principal(codempleado):
-    ventana_principal = tk.Toplevel()
+    ventana_principal = tk.Tk()  # Crear la ventana principal como Tk()
     ventana_principal.title("Factura")
-    ventana_principal.geometry("450x300")
+    ventana_principal.geometry("600x400")
 
     marco = tk.Frame(ventana_principal, bd=2, relief="solid")
     marco.pack(padx=5, pady=5, fill="both", expand=True)
@@ -201,15 +243,16 @@ def abrir_ventana_principal(codempleado):
     tk.Label(marco, text="Cliente").grid(row=0, column=2, padx=5, pady=2, sticky="w")
     entry_cliente_codigo = tk.Entry(marco, width=10)
     entry_cliente_codigo.grid(row=0, column=3, padx=5, pady=2)
-
-    btn_buscar_cliente = tk.Button(marco, text="🔍", width=2, command=lambda: buscar_cliente(entry_cliente_codigo))
-    btn_buscar_cliente.grid(row=0, column=4, padx=5, pady=2)
+    entry_cliente = tk.Entry(marco, width=20)
+    entry_cliente.grid(row=0, column=4, padx=5, pady=2)
+    btn_buscar_cliente = tk.Button(marco, text="🔍", width=2, command=lambda: buscar_cliente(entry_cliente_codigo, entry_cliente))
+    btn_buscar_cliente.grid(row=0, column=5, padx=5, pady=2)
 
     # Segunda fila
     tk.Label(marco, text="Empleado").grid(row=1, column=0, padx=5, pady=2, sticky="w")
     entry_empleado = tk.Entry(marco, width=20)
     entry_empleado.grid(row=1, column=1, columnspan=2, padx=5, pady=2)
-    cargar_nombre_empleado(codempleado, entry_empleado)
+    entry_empleado.insert(0, codempleado)  # Insertar el código del empleado
 
     tk.Label(marco, text="Fecha").grid(row=1, column=2, padx=5, pady=2, sticky="w")
     entry_fecha = tk.Entry(marco, width=15)
@@ -220,37 +263,37 @@ def abrir_ventana_principal(codempleado):
     tk.Label(marco, text="Producto").grid(row=2, column=0, padx=5, pady=2, sticky="w")
     entry_producto = tk.Entry(marco, width=15)
     entry_producto.grid(row=2, column=1, padx=5, pady=2)
-    btn_buscar_producto = tk.Button(marco, text="🔍", width=2, 
-                                    command=lambda: buscar_producto(entry_producto, tabla))
+    btn_buscar_producto = tk.Button(marco, text="🔍", width=2, command=lambda: buscar_producto(entry_producto, tabla, entry_cantidad, entry_descuento))
     btn_buscar_producto.grid(row=2, column=2, padx=5, pady=2)
 
+    # Campos de entrada para cantidad y descuento
+    tk.Label(marco, text="Cantidad").grid(row=2, column=3, padx=5, pady=2, sticky="w")
+    entry_cantidad = tk.Entry(marco, width=10)
+    entry_cantidad.grid(row=2, column=4, padx=5, pady=2)
+
+    tk.Label(marco, text="Descuento (%)").grid(row=2, column=5, padx=5, pady=2, sticky="w")
+    entry_descuento = tk.Entry(marco, width=10)
+    entry_descuento.grid(row=2, column=6, padx=5, pady=2)
+
     # Tabla
-    # Se agrega una columna extra "stock" para almacenar el stock (oculto al usuario)
-    columnas = ["item", "producto", "Cantidad", "Precio", "Descuento", "Total", "stock"]
+    columnas = ["idpro", "producto", "Cantidad", "Precio", "Descuento", "Total", "stock"]
     tabla = ttk.Treeview(marco, columns=columnas, show="headings", height=5)
 
     for col in columnas:
-        # Configurar la cabecera
-        if col == "stock":
-            # Columna oculta: sin cabecera y ancho cero
-            tabla.heading(col, text="")
-            tabla.column(col, width=0, minwidth=0, stretch=False)
-        else:
-            tabla.heading(col, text=col)
-            tabla.column(col, width=60, anchor="center")
+        tabla.heading(col, text=col)
+        tabla.column(col, width=60, anchor="center")
 
-    tabla.grid(row=4, column=0, columnspan=6, padx=5, pady=5)
+    tabla.grid(row=3, column=0, columnspan=7, padx=5, pady=5)
 
-    # (Opcional) Agregar filas vacías iniciales
-    for _ in range(5):
-        valores = ["" for _ in columnas]
-        tabla.insert("", "end", values=valores)
-
-    # Configurar la edición directa en las columnas "Cantidad" y "Descuento"
-    configurar_edicion_tabla(tabla, marco)
+    # Botón Calcular Total
+    btn_calcular_total = tk.Button(marco, text="Calcular Total", command=lambda: calcular_total(tabla))
+    btn_calcular_total.grid(row=4, column=0, columnspan=7, pady=5)
 
     # Botón Guardar
-    tk.Button(ventana_principal, text="Guardar").pack(pady=5)
+    btn_guardar = tk.Button(marco, text="Guardar", command=lambda: guardar_datos(entry_factura, entry_cliente_codigo, entry_empleado, entry_fecha, tabla))
+    btn_guardar.grid(row=5, column=0, columnspan=7, pady=5)
+
+    ventana_principal.mainloop()
 
 # Función para el login
 def login():
@@ -303,11 +346,11 @@ def registrar():
     entry_contrasena_reg.pack()
 
     def guardar_usuario():
-        codigo = entry_codigo.get().strip()
-        nombre = entry_nombre.get().strip()
-        apellido = entry_apellido.get().strip()
-        usuario = entry_usuario_reg.get().strip()
-        contrasena = entry_contrasena_reg.get().strip()
+        codigo = entry_codigo.get().strip()[:10]  # Ajusta el tamaño según la longitud máxima permitida
+        nombre = entry_nombre.get().strip()[:50]  # Ajusta el tamaño según la longitud máxima permitida
+        apellido = entry_apellido.get().strip()[:50]  # Ajusta el tamaño según la longitud máxima permitida
+        usuario = entry_usuario_reg.get().strip()[:20]  # Ajusta el tamaño según la longitud máxima permitida
+        contrasena = entry_contrasena_reg.get().strip()[:20]  # Ajusta el tamaño según la longitud máxima permitida
 
         if not codigo or not nombre or not apellido or not usuario or not contrasena:
             messagebox.showerror("Error", "Todos los campos son obligatorios")
@@ -326,6 +369,7 @@ def registrar():
             ventana_registro.destroy()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo registrar el usuario: {e}")
+            print(e)
         finally:
             conn.close()
 
