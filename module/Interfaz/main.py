@@ -168,7 +168,7 @@ def calcular_total(tabla):
         tabla.set(item, column=5, value=total)
 
 # Función para guardar los datos
-def guardar_datos(entry_factura, entry_cliente_codigo, entry_empleado, entry_fecha, tabla):
+def guardar_datos(entry_factura, entry_cliente_codigo, entry_cliente, entry_empleado, entry_fecha, entry_producto, entry_cantidad, entry_descuento, tabla):
     factura = entry_factura.get().strip()
     cliente_codigo = entry_cliente_codigo.get().strip()[:20]  # Ajusta el tamaño según la longitud máxima permitida
     empleado = entry_empleado.get().strip()[:10]  # Ajusta el tamaño según la longitud máxima permitida
@@ -219,6 +219,18 @@ def guardar_datos(entry_factura, entry_cliente_codigo, entry_empleado, entry_fec
             item_number += 1
         conn.commit()
         messagebox.showinfo("Información", "Datos guardados correctamente")
+
+        # Limpiar el formulario para una nueva factura
+        entry_factura.delete(0, tk.END)
+        entry_cliente_codigo.delete(0, tk.END)
+        entry_cliente.delete(0, tk.END)
+        entry_producto.delete(0, tk.END)
+        entry_cantidad.delete(0, tk.END)
+        entry_descuento.delete(0, tk.END)
+        for item in tabla.get_children():
+            tabla.delete(item)
+        obtener_numero_factura(entry_factura)
+
     except Exception as e:
         messagebox.showerror("Error", f"No se pudieron guardar los datos: {e}")
         print(e)
@@ -290,7 +302,7 @@ def abrir_ventana_principal(codempleado):
     btn_calcular_total.grid(row=4, column=0, columnspan=7, pady=5)
 
     # Botón Guardar
-    btn_guardar = tk.Button(marco, text="Guardar", command=lambda: guardar_datos(entry_factura, entry_cliente_codigo, entry_empleado, entry_fecha, tabla))
+    btn_guardar = tk.Button(marco, text="Guardar", command=lambda: guardar_datos(entry_factura, entry_cliente_codigo, entry_cliente, entry_empleado, entry_fecha, entry_producto, entry_cantidad, entry_descuento, tabla))
     btn_guardar.grid(row=5, column=0, columnspan=7, pady=5)
 
     ventana_principal.mainloop()
